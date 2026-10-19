@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { spawnSync } = require('node:child_process');
 const { readContext, recentHandoff } = require('../src/shared-context.cjs');
 
 const testRoot = path.resolve(__dirname, '../work/tests');
@@ -78,6 +79,20 @@ test('missing shared rules fail clearly instead of using remembered content', ()
   const f = fixture();
   fs.renameSync(path.join(f.root, 'RULES.md'), path.join(f.root, 'RULES.original.md'));
   assert.throws(() => readContext(f), /ENOENT/);
+});
+
+test('the Codex adapter emits an explicit blocking result when rules are unreadable', () => {
+  const f = fixture();
+  fs.renameSync(path.join(f.root, 'RULES.md'), path.join(f.root, 'RULES.original.md'));
+  const result = spawnSync(process.execPath, [path.resolve(__dirname, '../src/codex-hook.cjs')], {
+    input: JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'adapter-test', cwd: f.cwd }),
+    encoding: 'utf8', env: { ...process.env, AGENT_SHARED_ROOT: f.root },
+  });
+  const output = JSON.parse(result.stdout);
+  assert.equal(result.status, 0);
+  assert.equal(output.decision, 'block');
+  assert.equal(output.continue, false);
+  assert.match(output.systemMessage, /Shared context error/);
 });
 
 test('the DSH plugin re-reads files on every actual context assembly', async () => {
