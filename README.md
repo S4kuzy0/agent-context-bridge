@@ -19,16 +19,19 @@ node <bridge-directory>/src/read-context.cjs --client Codex
 node <bridge-directory>/src/read-context.cjs --client DSH
 ```
 
-复制 `config.example.json` 为 `config.local.json` 并设置共享根。Codex 用户配置目录的 `hooks.json` 中，为 `UserPromptSubmit` 添加调用 Node 与 `src/codex-hook.cjs` 的命令处理器。使用可读取实际项目的执行环境，设置合理超时，并允许完整上下文长度；处理器命令必须引用绝对路径。通过 Codex 的 `/hooks` 页面审核并信任本条钩子。修改钩子定义后需要重新审核。
+复制 `config.example.json` 为 `config.local.json` 并设置共享根。Codex 用户配置目录的 `hooks.json` 中，为 `UserPromptSubmit` 添加调用 Node 与 `src/codex-hook.cjs` 的命令处理器。使用可读取实际项目的执行环境，设置合理超时，并允许完整上下文长度；处理器命令必须使用绝对路径。通过 Codex 的 `/hooks` 页面审核并信任本条钩子。修改钩子定义后需要重新审核。
+
+Windows 的钩子使用当前轮次的 shell 解析命令。在 PowerShell 中，仅把带空格的可执行路径加双引号不会执行它，必须使用调用运算符或适配当前 shell 的启动方式。本机实测用 `commandWindows` 指定无空格的 Node 和处理器绝对路径，两者不加引号，可同时兼容 PowerShell 和 cmd。不要直接套用其他 shell 的引号规则；以原生请求中的实际注入内容验收。只显示 Trusted 或进度文字仍不足以证明成功。
 
 DSH profile 中把本项目以本地 `link:` 依赖注册为 `dsh-shared-context`，再在 `cordis.patch.yml` 中添加：
 
 ```yaml
-- id: shared-agent-context
-  name: dsh-shared-context
+- insert:
+    - id: shared-agent-context
+      name: dsh-shared-context
 ```
 
-安装时保存并核对原配置备份，不覆盖既有插件或钩子。已有会话是否重新加载配置由宿主决定；重新打开会话或重启应用后核查实际回执。宿主尚未加载时，共享规则应要求助手执行上述读取命令。
+这里必须使用 `insert`：直接写新 `id` 会被当作修改已有条目，找不到目标时跳过。安装时保存并核对原配置备份，不覆盖既有插件或钩子。已有会话是否重新加载配置由宿主决定；重新打开会话或重启应用后核查实际回执。宿主尚未加载时，共享规则应要求助手执行上述读取命令。
 
 当前安装版的 `codex exec` 实测没有触发 UserPromptSubmit，不能依靠该钩子在 headless 路径拦截请求。云端编排也不能假定支持本地命令钩子。原生钩子是否受信任、是否登记为启用、是否在某条执行路径实际触发，是不同的检查项。全局每轮读取约定及命令兜底覆盖缺少原生调用的路径，执行效果仍依赖助手遵守该约定。
 
@@ -51,6 +54,8 @@ node --test test/context.test.cjs
 ```
 
 测试覆盖双向更新、技能脚本变化与移除、大文件处理、项目隔离、北京时间范围、读取失败和 DSH 提供者重新读取。宿主注册验证与真实用户请求验收应分开记录，不能仅凭测试通过宣称应用已热加载。
+
+北京时间 2026-10-19 完成真实模型请求验收：DSH 桌面 Host 的同一测试会话连续读取三组新值，原生工具实际写出第二组；Codex 原生 TUI 的同一测试会话连续读取第二、第三组。两端规则、技能元数据和项目记忆全部命中；五次盲测回复无工具调用，最新规则和记忆直接出现在原生请求上下文中。临时核验技能和规则块已清理。此次结果不覆盖当前桌面聊天未来一轮、所有客户端或无头入口；缺少本轮原生回执时继续执行每轮命令兜底。
 
 设计与当前验证记录见 [项目记忆](docs/project-memory.md)。本机回滚入口为 `scripts/restore-local.ps1`，依赖未上传的 `installation.local.json` 和实际备份。回滚前校验文件仍与安装时一致，遇到后续修改时停止并合并；不会删除本项目目录。
 
