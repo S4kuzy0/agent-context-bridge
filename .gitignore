@@ -1,0 +1,17 @@
+[Aa][Gg][Ee][Nn][Tt].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt][Ss].override.[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt].override.[Mm][Dd]
+*.local.json
+node_modules/
+work/
+outputs/
+backups/
+archives/
+.env
+.env.*
+!.env.example
+*.log
+__pycache__/
+.DS_Store
+Thumbs.db
